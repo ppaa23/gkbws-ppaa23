@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Protein Activity Visualization</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Protein Activity Visualization</h1>
+    </header>
+    <main>
+        <div class="container">
+            <div class="row">
+                <div id="volcano-container" class="plot-container">
+                    <div id="volcano-plot"></div>
+                    <div id="volcano-loading" class="loading">Loading volcano plot...</div>
+                </div>
+            </div>
+            <div class="row">
+                <div id="boxplot-container" class="plot-container hidden">
+                    <h2 id="gene-title">Gene Information</h2>
+                    <div id="gene-info"></div>
+                    <div id="boxplot"></div>
+                    <div id="boxplot-loading" class="loading hidden">Loading boxplot...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <p>Protein Activity Visualization Tool</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
