@@ -14,13 +14,16 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 const plotData = JSON.parse(data.plot);
-                Plotly.newPlot('volcano-plot', plotData.data, plotData.layout);
+                Plotly.newPlot('volcano-plot', plotData.data, plotData.layout, {
+                    responsive: true
+                });
 
                 // Add click event to the plot
                 document.getElementById('volcano-plot').on('plotly_click', function(data) {
                     // Get the gene name from the point's custom data
                     const point = data.points[0];
                     const geneName = point.customdata[0];
+                    console.log("Clicked on gene:", geneName);  // Debug output
 
                     // Load gene data and boxplot
                     loadGeneData(geneName);
@@ -67,8 +70,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const geneInfo = data.gene_info;
                 let infoHTML = '<table>';
                 infoHTML += `<tr><td>Gene Symbol:</td><td>${geneInfo.EntrezGeneSymbol}</td></tr>`;
-                infoHTML += `<tr><td>Log2 Fold Change:</td><td>${geneInfo.logFC.toFixed(4)}</td></tr>`;
-                infoHTML += `<tr><td>Adjusted P-value:</td><td>${geneInfo.adj.P.Val.toExponential(4)}</td></tr>`;
+                infoHTML += `<tr><td>Log2 Fold Change:</td><td>${typeof geneInfo.logFC === 'number' ? geneInfo.logFC.toFixed(4) : geneInfo.logFC}</td></tr>`;
+                infoHTML += `<tr><td>Adjusted P-value:</td><td>${typeof geneInfo['adj.P.Val'] === 'number' ? geneInfo['adj.P.Val'].toExponential(4) : geneInfo['adj.P.Val']}</td></tr>`;
                 infoHTML += `<tr><td>Regulation:</td><td>${geneInfo.regulation}</td></tr>`;
                 infoHTML += '</table>';
 
@@ -76,7 +79,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Create boxplot
                 const boxplotData = JSON.parse(data.boxplot);
-                Plotly.newPlot('boxplot', boxplotData.data, boxplotData.layout);
+                Plotly.newPlot('boxplot', boxplotData.data, boxplotData.layout, {
+                    responsive: true
+                });
 
                 boxplotLoading.classList.add('hidden');
                 boxplotElement.classList.remove('hidden');

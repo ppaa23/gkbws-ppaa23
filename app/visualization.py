@@ -4,16 +4,21 @@ import json
 import numpy as np
 
 
+class NumpyEncoder(json.JSONEncoder):
+    """JSON encoder that handles numpy types."""
+
+    def default(self, obj):
+        if isinstance(obj, (np.integer, np.int64, np.int32)):
+            return int(obj)
+        elif isinstance(obj, (np.floating, np.float64, np.float32)):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
+
+
 def create_volcano_plot(volcano_data):
-    """
-    Generate interactive volcano plot from processed data.
-
-    Args:
-        volcano_data (pandas.DataFrame): DataFrame containing volcano plot data
-
-    Returns:
-        str: JSON representation of the Plotly figure
-    """
+    """Generate interactive volcano plot from processed data."""
     # Color mapping for the different regulation categories
     color_map = {
         'up-regulated': 'red',
@@ -43,6 +48,11 @@ def create_volcano_plot(volcano_data):
         custom_data=['EntrezGeneSymbol']  # Include gene name for click event
     )
 
+    # Calculate a symmetrical x-axis range to center the plot
+    x_max = max(abs(float(volcano_data['logFC'].min())), abs(float(volcano_data['logFC'].max())))
+    x_max = round(x_max * 1.1, 1)  # Add 10% padding and round to one decimal
+    x_range = [-x_max, x_max]
+
     # Update layout for better visualization
     fig.update_layout(
         plot_bgcolor='white',
@@ -53,7 +63,8 @@ def create_volcano_plot(volcano_data):
             gridcolor='lightgray',
             zeroline=True,
             zerolinecolor='black',
-            zerolinewidth=1
+            zerolinewidth=1,
+            range=x_range  # Set symmetrical range
         ),
         yaxis=dict(
             title='-log10(adjusted P-value)',
@@ -64,8 +75,8 @@ def create_volcano_plot(volcano_data):
     # Add a horizontal line at p-value = 0.05 (-log10(0.05) ≈ 1.3)
     fig.add_shape(
         type='line',
-        x0=min(volcano_data['logFC']),
-        x1=max(volcano_data['logFC']),
+        x0=-x_max,
+        x1=x_max,
         y0=-np.log10(0.05),
         y1=-np.log10(0.05),
         line=dict(color='darkgray', width=1, dash='dash')
@@ -77,7 +88,7 @@ def create_volcano_plot(volcano_data):
         x0=1,
         x1=1,
         y0=0,
-        y1=max(volcano_data['-log10(adj.P.Val)']),
+        y1=float(volcano_data['-log10(adj.P.Val)'].max()),
         line=dict(color='darkgray', width=1, dash='dash')
     )
 
@@ -86,7 +97,7 @@ def create_volcano_plot(volcano_data):
         x0=-1,
         x1=-1,
         y0=0,
-        y1=max(volcano_data['-log10(adj.P.Val)']),
+        y1=float(volcano_data['-log10(adj.P.Val)'].max()),
         line=dict(color='darkgray', width=1, dash='dash')
     )
 
@@ -100,20 +111,12 @@ def create_volcano_plot(volcano_data):
         font=dict(size=10)
     )
 
-    return json.dumps(fig.to_dict())
+    # Use custom encoder to handle numpy values
+    return json.dumps(fig.to_dict(), cls=NumpyEncoder)
 
 
 def create_boxplot(boxplot_data, gene_name):
-    """
-    Generate boxplot comparing Young vs Old samples for a specific gene.
-
-    Args:
-        boxplot_data (pandas.DataFrame): DataFrame containing boxplot data
-        gene_name (str): Name of the gene
-
-    Returns:
-        str: JSON representation of the Plotly figure
-    """
+    """Generate boxplot comparing Young vs Old samples for a specific gene."""
     # Create figure
     fig = go.Figure()
 
@@ -121,27 +124,28 @@ def create_boxplot(boxplot_data, gene_name):
     for age_group in ['Young', 'Old']:
         group_data = boxplot_data[boxplot_data['age_group'] == age_group]
 
-        # Add boxplot
-        fig.add_trace(go.Box(
-            y=group_data['value'],
-            name=age_group,
-            boxmean=True,  # Show mean
-            marker_color='royalblue' if age_group == 'Young' else 'firebrick'
-        ))
+        if len(group_data) > 0:
+            # Add boxplot
+            fig.add_trace(go.Box(
+                y=group_data['value'].tolist(),  # Convert to list for JSON safety
+                name=age_group,
+                boxmean=True,  # Show mean
+                marker_color='royalblue' if age_group == 'Young' else 'firebrick'
+            ))
 
-        # Add individual points
-        fig.add_trace(go.Scatter(
-            y=group_data['value'],
-            x=[age_group] * len(group_data),
-            mode='markers',
-            name=f'{age_group} samples',
-            marker=dict(
-                color='navy' if age_group == 'Young' else 'darkred',
-                size=8,
-                opacity=0.6
-            ),
-            showlegend=False
-        ))
+            # Add individual points
+            fig.add_trace(go.Scatter(
+                y=group_data['value'].tolist(),  # Convert to list for JSON safety
+                x=[age_group] * len(group_data),
+                mode='markers',
+                name=f'{age_group} samples',
+                marker=dict(
+                    color='navy' if age_group == 'Young' else 'darkred',
+                    size=8,
+                    opacity=0.6
+                ),
+                showlegend=False
+            ))
 
     # Update layout
     fig.update_layout(
@@ -153,4 +157,5 @@ def create_boxplot(boxplot_data, gene_name):
         margin=dict(l=20, r=20, t=60, b=20)
     )
 
-    return json.dumps(fig.to_dict())
+    # Use custom encoder to handle numpy values
+    return json.dumps(fig.to_dict(), cls=NumpyEncoder)
