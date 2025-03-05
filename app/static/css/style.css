@@ -29,19 +29,15 @@ footer {
 }
 
 .container {
+    max-width: 1000px; /* Set a fixed maximum width */
     width: 90%;
-    margin: auto;
-    overflow: hidden;
+    margin: 0 auto; /* Center the container */
     padding: 20px 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center; /* Center content horizontally */
 }
 
 .row {
     width: 100%;
-    max-width: 1200px; /* Limit maximum width */
-    margin-bottom: 20px;
+    margin: 0 auto 20px auto; /* Center with margins */
 }
 
 .plot-container {
@@ -49,13 +45,15 @@ footer {
     border-radius: 5px;
     box-shadow: 0 0 10px rgba(0,0,0,0.1);
     padding: 20px;
-    margin-bottom: 50px;
+    margin: 0 auto 50px auto; /* Center with margins */
     width: 100%;
+    text-align: center; /* Center contents */
 }
 
 #volcano-plot, #boxplot {
     width: 100%;
     height: 500px;
+    margin: 0 auto; /* Center the plot */
 }
 
 .loading {
@@ -70,14 +68,140 @@ footer {
 }
 
 #gene-info {
-    margin: 15px 0;
+    margin: 15px auto; /* Center with margins */
     padding: 10px;
     background-color: #f9f9f9;
     border: 1px solid #ddd;
     border-radius: 4px;
+    max-width: 600px; /* Limit width */
+    text-align: left;
+}
+
+#gene-info table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#gene-info td {
+    padding: 5px 10px;
+    border-bottom: 1px solid #eee;
+}
+
+#gene-info tr:last-child td {
+    border-bottom: none;
+}
+
+#gene-info td:first-child {
+    font-weight: bold;
+    width: 40%;
 }
 
 #gene-title {
     margin-bottom: 10px;
     color: #35424a;
+    text-align: center;
+}
+
+.papers-container {
+    margin-top: 30px;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+}
+
+.papers-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.papers-container h3 {
+    margin-bottom: 0;
+    color: #35424a;
+}
+
+.sort-controls {
+    display: flex;
+    align-items: center;
+}
+
+.sort-controls select {
+    margin-left: 5px;
+    padding: 5px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+
+.papers-list {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+.papers-list li {
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.papers-list li:last-child {
+    border-bottom: none;
+}
+
+.papers-list a {
+    color: #3366cc;
+    text-decoration: none;
+    font-weight: 500;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.papers-list a:hover {
+    text-decoration: underline;
+}
+
+.paper-meta {
+    font-size: 0.85em;
+    color: #666;
+    display: flex;
+    gap: 15px;
+}
+
+.paper-date, .paper-citations {
+    display: inline-block;
+}
+
+.pagination-controls {
+    margin-top: 15px;
+    text-align: center;
+}
+
+#show-more-papers {
+    background-color: #35424a;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#show-more-papers:hover {
+    background-color: #455a64;
+}
+
+.no-papers {
+    font-style: italic;
+    color: #666;
+    margin-top: 20px;
+    text-align: center;
+}
+
+/* Add for responsive layouts */
+@media (max-width: 768px) {
+    .container {
+        width: 95%;
+    }
 }
