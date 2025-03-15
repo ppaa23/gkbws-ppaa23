@@ -47,6 +47,8 @@ All the required packages (with the appropriate versions) are specified in the `
 - **Logging**: The app uses Singleton pattern to avoid multiple instances of logger.
 - **Testing**: The app uses pytest to test the application (including negative tests, e.g. 404 error).
 
+Current version of the app is appropriate for development purposes only.
+
 ## API Endpoints
 - `/` (GET) - Displays the main page with the volcano plot
 - `/api/volcano-data` (GET) - Returns JSON data for the volcano plot
