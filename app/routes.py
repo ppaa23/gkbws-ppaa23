@@ -53,7 +53,7 @@ def init_routes(app):
                 nonlocal papers
                 try:
                     logger.info(f"Background thread: fetching papers for gene {gene_name}")
-                    papers = mygene_client.get_papers_for_gene(gene_name, max_papers=8, timeout=10)
+                    papers = mygene_client.get_papers_for_gene(gene_name, max_papers=100, timeout=100)
                     logger.info(f"Background thread: found {len(papers)} papers for gene {gene_name}")
                 except Exception as e:
                     logger.error(f"Background thread: error fetching papers for gene {gene_name}: {str(e)}")
@@ -94,7 +94,7 @@ def init_routes(app):
 
             logger.info(f"Fetching papers for gene: {gene_name} (page {page}, size {page_size})")
 
-            all_papers = mygene_client.get_papers_for_gene(gene_name, max_papers=50, timeout=20)
+            all_papers = mygene_client.get_papers_for_gene(gene_name, max_papers=100, timeout=100)
             total_papers = len(all_papers)
 
             # Apply pagination
