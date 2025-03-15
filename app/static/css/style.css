@@ -82,6 +82,12 @@ footer {
     padding: 20px;
     font-style: italic;
     color: #666;
+    width: 100%;
+    max-width: 800px; /* Match the width of gene-info and papers-container */
+    margin: 15px auto;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
 }
 
 .hidden {
@@ -90,17 +96,18 @@ footer {
 
 #gene-info {
     margin: 15px auto; /* Center with margins */
-    padding: 10px;
+    padding: 10px 15px;
     background-color: #f9f9f9;
     border: 1px solid #ddd;
     border-radius: 4px;
-    max-width: 600px; /* Limit width */
+    width: 800px; /* Fixed width instead of max-width */
     text-align: left;
 }
 
 #gene-info table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed; /* Fixed layout to control column widths better */
 }
 
 #gene-info td {
@@ -114,21 +121,30 @@ footer {
 
 #gene-info td:first-child {
     font-weight: bold;
-    width: 40%;
+    width: 30%; /* Reduced from 40% to make labels more compact */
+    white-space: nowrap; /* Prevent wrapping of label text */
+}
+
+#gene-info td:last-child {
+    width: 70%; /* Increased from 60% (implied) */
 }
 
 #gene-title {
     margin-bottom: 10px;
     color: #35424a;
     text-align: center;
+    width: 800px; /* Match the width of gene-info */
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .papers-container {
-    margin-top: 30px;
+    margin: 30px auto;
     padding: 15px;
     background-color: #f9f9f9;
     border-radius: 5px;
     border: 1px solid #ddd;
+    width: 800px; /* Fixed width to match gene-info */
 }
 
 .papers-header {
@@ -216,13 +232,18 @@ footer {
 .no-papers {
     font-style: italic;
     color: #666;
-    margin-top: 20px;
+    margin: 20px auto;
     text-align: center;
+    width: 800px; /* Match fixed width */
+    padding: 15px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
 }
 
-@media (max-width: 768px) {
-    .container {
-        width: 95%;
+@media (max-width: 860px) {
+    #gene-info, .papers-container, #gene-title, .loading, .no-papers {
+        width: 95%; /* Responsive width for smaller screens */
     }
 }
 
@@ -280,4 +301,13 @@ footer {
 
 .papers-error {
     color: #d32f2f;
+}
+
+#boxplot-loading {
+    width: 800px;
+    margin: 15px auto;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
 }

@@ -134,6 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
         papersContainer.dataset.geneName = geneName;
         papersContainer.dataset.currentPage = paginationInfo.currentPage;
         papersContainer.dataset.totalPapers = paginationInfo.totalPapers;
+        papersContainer.dataset.sortBy = 'default'; // Initialize with default sort
 
         // Header with title and loading indicator
         papersContainer.innerHTML = `
@@ -219,6 +220,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const loadingSpan = papersContainer.querySelector('.papers-loading');
         const papersList = papersContainer.querySelector('.papers-list');
         const pageSize = 5; // Default page size, should match server
+        const currentSortBy = papersContainer.dataset.sortBy || 'default'; // Get current sort preference
 
         // Show loading indicator
         loadingSpan.textContent = 'Loading papers...';
@@ -246,11 +248,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     papersContainer.dataset.currentPage = data.page;
                     papersContainer.dataset.totalPapers = data.total_papers;
 
-                    // Add papers to list
-                    papers.forEach(paper => papersList.appendChild(createPaperItem(paper)));
-
-                    // Add sort controls
-                    addSortControls(papersContainer, papers);
+                    // Store papers data for current page
+                    papersContainer.dataset.currentPagePapers = JSON.stringify(papers);
 
                     // Update pagination controls
                     updatePaginationControls(
@@ -262,6 +261,21 @@ document.addEventListener('DOMContentLoaded', function() {
                             totalPapers: data.total_papers
                         }
                     );
+
+                    // Add sort controls or update the existing one
+                    if (!papersContainer.querySelector('.sort-controls')) {
+                        addSortControls(papersContainer, papers);
+                    }
+
+                    // Add papers to list with existing sort preference applied
+                    const sortSelect = papersContainer.querySelector('#paper-sort');
+                    if (sortSelect) {
+                        sortSelect.value = currentSortBy;
+                        renderSortedPapers(papersContainer);
+                    } else {
+                        // Fallback if sort control isn't available yet
+                        papers.forEach(paper => papersList.appendChild(createPaperItem(paper)));
+                    }
                 } else {
                     // No papers found
                     papersList.innerHTML = '<li class="no-papers">No scientific papers found for this gene.</li>';
@@ -312,8 +326,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // Store papers data for current page only
         papersContainer.dataset.currentPagePapers = JSON.stringify(papers);
 
+        // Set the sort select to match the current sort preference
+        const currentSortBy = papersContainer.dataset.sortBy || 'default';
+        papersContainer.querySelector('#paper-sort').value = currentSortBy;
+
         // Add event listener
         papersContainer.querySelector('#paper-sort').addEventListener('change', function() {
+            // Store the current sort preference in the container's dataset
+            papersContainer.dataset.sortBy = this.value;
             renderSortedPapers(papersContainer);
         });
     }
@@ -321,14 +341,18 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderSortedPapers(container) {
         const papersList = container.querySelector('.papers-list');
         const sortSelect = container.querySelector('#paper-sort');
+        const sortValue = sortSelect.value;
         const currentPagePapers = JSON.parse(container.dataset.currentPagePapers || '[]');
+
+        // Store the selected sort method
+        container.dataset.sortBy = sortValue;
 
         if (currentPagePapers.length === 0) return;
 
         // Sort papers (only the ones visible on the current page)
         const sortedPapers = [...currentPagePapers];
 
-        switch (sortSelect.value) {
+        switch (sortValue) {
             case 'date-desc':
                 sortedPapers.sort((a, b) => {
                     if (a.date === "Unknown") return 1;
