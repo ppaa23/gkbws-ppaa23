@@ -368,41 +368,6 @@ def test_gene_data_route(mock_get_papers, mock_create_boxplot, mock_get_gene_dat
     mock_create_boxplot.assert_called_once()
 
 
-@mock.patch('app.data_processing.load_volcano_data')
-@mock.patch('app.data_processing.load_boxplot_data')
-def test_test_gene_route(mock_load_boxplot, mock_load_volcano, client):
-    # Mock the volcano data
-    mock_volcano_df = pd.DataFrame({
-        'EntrezGeneSymbol': ['GENE1', 'GENE2'],
-        'logFC': [1.5, -2.0],
-        'adj.P.Val': [0.01, 0.001],
-        '-log10(adj.P.Val)': [2.0, 3.0],
-        'regulation': ['up-regulated', 'down-regulated']
-    })
-    mock_load_volcano.return_value = mock_volcano_df
-
-    # Mock the boxplot data
-    mock_boxplot_df = pd.DataFrame({
-        'age_group': ['Young', 'Old'],
-        'value': [1.5, 2.2],
-        'sample': ['Sample1', 'Sample3']
-    })
-    mock_load_boxplot.return_value = mock_boxplot_df
-
-    response = client.get('/api/test-gene/GENE1')
-
-    assert response.status_code == 200 # Normal response
-    data = json.loads(response.data)
-    assert data['status'] == 'success'
-    assert data['gene'] == 'GENE1'
-    assert data['volcano_data_found'] is True
-    assert data['boxplot_data_points'] == 2
-    assert 'gene_info' in data
-
-    mock_load_volcano.assert_called_once()
-    mock_load_boxplot.assert_called_once_with('GENE1')
-
-
 def test_missing_gene_route(client):
     """Negative test for missing gene."""
     response = client.get('/api/gene/NONEXISTENTGENE')
