@@ -1,4 +1,3 @@
-# app/visualization.py
 import plotly.graph_objects as go
 import json
 import numpy as np
@@ -10,7 +9,6 @@ logger = get_logger()
 
 class NumpyEncoder(json.JSONEncoder):
     """JSON encoder that handles numpy types."""
-
     def default(self, obj):
         if isinstance(obj, (np.integer, np.int64, np.int32)):
             return int(obj)
@@ -27,7 +25,6 @@ class NumpyEncoder(json.JSONEncoder):
 
 def create_volcano_plot(volcano_data):
     """Generate interactive volcano plot from processed data."""
-    # Ensure we have data to plot
     if volcano_data is None or len(volcano_data) == 0:
         logger.error("No data available for volcano plot")
         return json.dumps({"error": "No data available for volcano plot"})
@@ -35,21 +32,21 @@ def create_volcano_plot(volcano_data):
     # Filter out NaN values in key columns
     clean_data = volcano_data.dropna(subset=['logFC', '-log10(adj.P.Val)', 'regulation', 'EntrezGeneSymbol'])
 
-    # Log some diagnostic information
+    # Log data distribution
     logger.info(f"Creating volcano plot with {len(clean_data)} data points")
     logger.info(f"Up-regulated: {len(clean_data[clean_data['regulation'] == 'up-regulated'])}")
     logger.info(f"Down-regulated: {len(clean_data[clean_data['regulation'] == 'down-regulated'])}")
     logger.info(f"Not significant: {len(clean_data[clean_data['regulation'] == 'not significant'])}")
 
-    # Separate data by regulation category for different colors
+    # Separate data by regulation category
     not_sig_data = clean_data[clean_data['regulation'] == 'not significant']
     up_reg_data = clean_data[clean_data['regulation'] == 'up-regulated']
     down_reg_data = clean_data[clean_data['regulation'] == 'down-regulated']
 
-    # Create the plot with separate traces for each regulation type
+    # Create the plot
     fig = go.Figure()
 
-    # Add not significant points - wrap each gene name in an array to match main.js
+    # Add not significant points
     if len(not_sig_data) > 0:
         fig.add_trace(go.Scatter(
             x=not_sig_data['logFC'].tolist(),
@@ -70,7 +67,7 @@ def create_volcano_plot(volcano_data):
             customdata=[[gene] for gene in not_sig_data['EntrezGeneSymbol'].tolist()]
         ))
 
-    # Add up-regulated points with customdata as arrays
+    # Add up-regulated points
     if len(up_reg_data) > 0:
         fig.add_trace(go.Scatter(
             x=up_reg_data['logFC'].tolist(),
@@ -91,7 +88,7 @@ def create_volcano_plot(volcano_data):
             customdata=[[gene] for gene in up_reg_data['EntrezGeneSymbol'].tolist()]
         ))
 
-    # Add down-regulated points with customdata as arrays
+    # Add down-regulated points
     if len(down_reg_data) > 0:
         fig.add_trace(go.Scatter(
             x=down_reg_data['logFC'].tolist(),
@@ -112,10 +109,10 @@ def create_volcano_plot(volcano_data):
             customdata=[[gene] for gene in down_reg_data['EntrezGeneSymbol'].tolist()]
         ))
 
-    # Calculate a symmetrical x-axis range to center the plot
+    # Calculate symmetrical x-axis range
     x_max = max(abs(float(clean_data['logFC'].min())), abs(float(clean_data['logFC'].max())))
-    x_max = round(x_max * 1.1, 1)  # Add 10% padding and round to one decimal
-    if x_max == 0 or pd.isna(x_max):  # Default if no range can be calculated
+    x_max = round(x_max * 1.1, 1)  # Add 10% padding and round
+    if x_max == 0 or pd.isna(x_max):
         x_max = 5
     x_range = [-x_max, x_max]
 
@@ -149,7 +146,7 @@ def create_volcano_plot(volcano_data):
         )
     )
 
-    # Add a horizontal line at p-value = 0.05 (-log10(0.05) ≈ 1.3)
+    # Add significance threshold lines
     fig.add_shape(
         type='line',
         x0=-x_max,
@@ -159,7 +156,6 @@ def create_volcano_plot(volcano_data):
         line=dict(color='darkgray', width=1, dash='dash')
     )
 
-    # Add vertical lines at log2(FC) = 1 and log2(FC) = -1
     fig.add_shape(
         type='line',
         x0=1,
@@ -178,7 +174,7 @@ def create_volcano_plot(volcano_data):
         line=dict(color='darkgray', width=1, dash='dash')
     )
 
-    # Add annotations for the significance thresholds
+    # Add significance threshold annotation
     fig.add_annotation(
         x=0,
         y=-np.log10(0.05),
@@ -196,7 +192,6 @@ def create_volcano_plot(volcano_data):
 
 def create_boxplot(boxplot_data, gene_name):
     """Generate boxplot comparing Young vs Old samples for a specific gene."""
-    # Check if we have data
     if boxplot_data is None or len(boxplot_data) == 0:
         logger.error(f"No boxplot data available for gene {gene_name}")
         return json.dumps({"error": f"No data available for {gene_name} boxplot"})
@@ -211,15 +206,14 @@ def create_boxplot(boxplot_data, gene_name):
         group_data = boxplot_data[boxplot_data['age_group'] == age_group]
 
         if len(group_data) > 0:
-            # Convert values to numeric and filter out NaN
             values = pd.to_numeric(group_data['value'], errors='coerce').dropna().tolist()
 
-            if values:  # Only add trace if we have values
+            if values:
                 # Add boxplot
                 fig.add_trace(go.Box(
                     y=values,
                     name=age_group,
-                    boxmean=True,  # Show mean
+                    boxmean=True,
                     marker_color='royalblue' if age_group == 'Young' else 'firebrick'
                 ))
 

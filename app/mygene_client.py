@@ -1,4 +1,3 @@
-# app/mygene_client.py
 import requests
 import time
 import functools
@@ -7,28 +6,21 @@ from app.logger import get_logger
 logger = get_logger()
 
 
+@functools.lru_cache(maxsize=100)
 def search_gene_by_symbol(symbol, timeout=5):
-    """
-    Search for a gene by its symbol using MyGene.info API.
-
-    Args:
-        symbol (str): Gene symbol to search for (e.g. 'CDK2')
-        timeout (int): Timeout for the request in seconds
-
-    Returns:
-        dict: Gene information including ID
-    """
+    """Search for a gene by its symbol using MyGene.info API with caching."""
     url = f"https://mygene.info/v3/query?q=symbol:{symbol}&species=human"
 
     try:
-        logger.info(f"Searching for gene {symbol} via MyGene.info API")
+        logger.info(f"Searching for gene {symbol} via MyGene.info API (first search or cache miss)")
         response = requests.get(url, timeout=timeout)
         response.raise_for_status()
         data = response.json()
 
         if data.get('hits') and len(data['hits']) > 0:
-            logger.info(f"Found gene {symbol} with ID {data['hits'][0].get('_id', 'unknown')}")
-            return data['hits'][0]  # Return the first match
+            gene_id = data['hits'][0].get('_id', 'unknown')
+            logger.info(f"Found gene {symbol} with ID {gene_id}")
+            return data['hits'][0]
         else:
             logger.warning(f"No results found for gene {symbol}")
             return None
@@ -40,20 +32,11 @@ def search_gene_by_symbol(symbol, timeout=5):
         return None
 
 
-@functools.lru_cache(maxsize=100)
+@functools.lru_cache(maxsize=200)
 def get_publication_details(pmid, timeout=3):
-    """
-    Get additional details for a publication from PubMed API with caching.
-
-    Args:
-        pmid (str): PubMed ID
-        timeout (int): Timeout for the request in seconds
-
-    Returns:
-        dict: Publication details including date and citation count
-    """
+    """Get publication details from PubMed API with caching."""
     try:
-        logger.info(f"Fetching details for publication {pmid}")
+        logger.info(f"Fetching details for publication {pmid} (first fetch or cache miss)")
         url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id={pmid}&retmode=json"
         response = requests.get(url, timeout=timeout)
         response.raise_for_status()
@@ -61,16 +44,10 @@ def get_publication_details(pmid, timeout=3):
 
         if 'result' in data and pmid in data['result']:
             pub_data = data['result'][pmid]
-
-            # Extract publication date
-            pub_date = "Unknown"
-            if 'pubdate' in pub_data:
-                pub_date = pub_data['pubdate']
-
-            # Extract title
+            pub_date = pub_data.get('pubdate', "Unknown")
             title = pub_data.get('title', f"Publication {pmid}")
 
-            # Get citation count if available (using elink API)
+            # Get citation count
             citations = 0
             try:
                 cite_url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pubmed&id={pmid}&linkname=pubmed_pubmed_citedin&retmode=json"
@@ -81,6 +58,7 @@ def get_publication_details(pmid, timeout=3):
                     linkset = cite_data['linksets'][0]
                     if 'linksetdbs' in linkset and len(linkset['linksetdbs']) > 0:
                         citations = len(linkset['linksetdbs'][0].get('links', []))
+                        logger.info(f"Publication {pmid} has {citations} citations")
             except (requests.exceptions.RequestException, ValueError) as e:
                 logger.warning(f"Error getting citation count for PMID {pmid}: {e}")
 
@@ -120,22 +98,13 @@ def get_publication_details(pmid, timeout=3):
         }
 
 
+@functools.lru_cache(maxsize=50)
 def get_gene_publications(gene_id, timeout=15, max_papers=50):
-    """
-    Get scientific publications related to a gene by its ID.
-
-    Args:
-        gene_id (str): Gene ID from MyGene.info
-        timeout (int): Timeout for the request in seconds
-        max_papers (int): Maximum number of papers to process
-
-    Returns:
-        list: List of publication information (title, PMID, URL, date, citations)
-    """
+    """Get scientific publications related to a gene by its ID with caching."""
     url = f"https://mygene.info/v3/gene/{gene_id}"
 
     try:
-        logger.info(f"Fetching publications for gene ID {gene_id}")
+        logger.info(f"Fetching publications for gene ID {gene_id} (first fetch or cache miss)")
         start_time = time.time()
 
         response = requests.get(url, timeout=timeout)
@@ -157,13 +126,13 @@ def get_gene_publications(gene_id, timeout=15, max_papers=50):
 
         logger.info(f"Found {len(pmids)} PMIDs for gene ID {gene_id}")
 
-        # Limit the number of PMIDs to process to max_papers
+        # Limit the number of PMIDs to process
         pmids_list = list(pmids)[:max_papers]
 
         # Get details for each publication
         publications = []
         for pmid in pmids_list:
-            if time.time() - start_time > timeout - 2:  # Reserve 2 seconds for other operations
+            if time.time() - start_time > timeout - 2:  # Reserve 2 seconds
                 logger.warning(f"Timeout limit approaching, stopping at {len(publications)} papers")
                 break
 
@@ -171,7 +140,7 @@ def get_gene_publications(gene_id, timeout=15, max_papers=50):
             if pub_details:
                 publications.append(pub_details)
 
-        # Return all publications with their details
+        logger.info(f"Retrieved details for {len(publications)} publications for gene ID {gene_id}")
         return publications
     except requests.exceptions.Timeout:
         logger.error(f"Timeout fetching publications for gene ID {gene_id}")
@@ -181,18 +150,9 @@ def get_gene_publications(gene_id, timeout=15, max_papers=50):
         return []
 
 
+# Not caching this function as it often gets called with different timeout/max_papers parameters
 def get_papers_for_gene(gene_symbol, max_papers=50, timeout=20):
-    """
-    Get scientific papers related to a gene symbol.
-
-    Args:
-        gene_symbol (str): Gene symbol (e.g. 'CDK2')
-        max_papers (int): Maximum number of papers to return
-        timeout (int): Maximum time to spend fetching papers in seconds
-
-    Returns:
-        list: List of paper information (title, URL, date, citations)
-    """
+    """Get scientific papers related to a gene symbol."""
     logger.info(f"Starting paper search for gene {gene_symbol} (max: {max_papers}, timeout: {timeout}s)")
     start_time = time.time()
 
@@ -205,10 +165,15 @@ def get_papers_for_gene(gene_symbol, max_papers=50, timeout=20):
     # Get publications using gene ID
     elapsed = time.time() - start_time
     remaining_timeout = max(1, timeout - elapsed)
-    logger.info(f"Found gene ID {gene_info['_id']}, fetching papers with {remaining_timeout:.1f}s timeout")
-
     gene_id = gene_info['_id']
-    papers = get_gene_publications(gene_id, timeout=remaining_timeout, max_papers=max_papers)
+    logger.info(f"Found gene ID {gene_id}, fetching papers with {remaining_timeout:.1f}s timeout")
+
+    # For consistent caching, use fixed values if the remaining time is sufficient
+    if remaining_timeout >= 15:
+        papers = get_gene_publications(gene_id, timeout=15, max_papers=max_papers)
+    else:
+        # If time is limited, pass the actual remaining timeout
+        papers = get_gene_publications(gene_id, timeout=remaining_timeout, max_papers=max_papers)
 
     logger.info(f"Completed paper search for {gene_symbol}: found {len(papers)} papers in {time.time() - start_time:.2f}s")
     return papers
