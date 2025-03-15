@@ -1,22 +1,35 @@
-// app/static/js/main.js
 document.addEventListener('DOMContentLoaded', function() {
-    // Load volcano plot on page load
     loadVolcanoPlot();
 
-    // Function to load the volcano plot
     function loadVolcanoPlot() {
         const loadingElement = document.getElementById('volcano-loading');
         const plotElement = document.getElementById('volcano-plot');
+        const errorElement = document.getElementById('volcano-error') || document.createElement('div');
+
+        if (!document.getElementById('volcano-error')) {
+            errorElement.id = 'volcano-error';
+            errorElement.className = 'error-message hidden';
+            plotElement.parentNode.insertBefore(errorElement, plotElement);
+        }
 
         loadingElement.classList.remove('hidden');
         plotElement.classList.add('hidden');
+        errorElement.classList.add('hidden');
 
         fetch('/api/volcano-data')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
                 const plotData = JSON.parse(data.plot);
 
-                // Update layout for better centering
                 const updatedLayout = {
                     ...plotData.layout,
                     autosize: true,
@@ -26,23 +39,32 @@ document.addEventListener('DOMContentLoaded', function() {
                         b: 70,
                         t: 70,
                         pad: 10
-                    }
+                    },
+                    hovermode: 'closest'
                 };
 
                 Plotly.newPlot('volcano-plot', plotData.data, updatedLayout, {
                     responsive: true,
-                    displayModeBar: true
+                    displayModeBar: true,
+                    modeBarButtonsToRemove: ['lasso2d', 'select2d']
                 });
 
-                // Add click event to the plot
+                // Add click event to the plot with debouncing
+                let clickTimeout;
                 document.getElementById('volcano-plot').on('plotly_click', function(data) {
-                    // Get the gene name from the point's custom data
-                    const point = data.points[0];
-                    const geneName = point.customdata[0];
-                    console.log("Clicked on gene:", geneName);  // Debug output
+                    // Clear any pending clicks
+                    clearTimeout(clickTimeout);
 
-                    // Load gene data and boxplot
-                    loadGeneData(geneName);
+                    // Debounce click events (300ms)
+                    clickTimeout = setTimeout(() => {
+                        // Get the gene name from the point's custom data
+                        const point = data.points[0];
+                        const geneName = point.customdata[0];
+                        console.log("Clicked on gene:", geneName);  // Debug output
+
+                        // Load gene data and boxplot
+                        loadGeneData(geneName);
+                    }, 300);
                 });
 
                 loadingElement.classList.add('hidden');
@@ -50,32 +72,38 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error loading volcano plot:', error);
-                loadingElement.textContent = 'Error loading volcano plot. Please try again.';
+                errorElement.textContent = `Error loading volcano plot: ${error.message}`;
+                errorElement.classList.remove('hidden');
+                loadingElement.classList.add('hidden');
             });
     }
 
-    // Function to load gene data and create boxplot
+    /**
+     * Function to load gene data and create boxplot
+     * @param {string} geneName - Name of the gene to load
+     */
     function loadGeneData(geneName) {
         const boxplotContainer = document.getElementById('boxplot-container');
         const boxplotLoading = document.getElementById('boxplot-loading');
         const boxplotElement = document.getElementById('boxplot');
         const geneInfoElement = document.getElementById('gene-info');
         const geneTitleElement = document.getElementById('gene-title');
+        const boxplotErrorElement = document.getElementById('boxplot-error') || document.createElement('div');
+
+        if (!document.getElementById('boxplot-error')) {
+            boxplotErrorElement.id = 'boxplot-error';
+            boxplotErrorElement.className = 'error-message hidden';
+            boxplotElement.parentNode.insertBefore(boxplotErrorElement, boxplotElement);
+        }
 
         // Clear any existing paper information
-        const existingPapersContainer = boxplotContainer.querySelector('.papers-container');
-        if (existingPapersContainer) {
-            existingPapersContainer.remove();
-        }
+        removeExistingPaperElements(boxplotContainer);
 
-        const existingNoPapers = boxplotContainer.querySelector('.no-papers');
-        if (existingNoPapers) {
-            existingNoPapers.remove();
-        }
-
+        // Show loading indicators, hide results and errors
         boxplotContainer.classList.remove('hidden');
         boxplotLoading.classList.remove('hidden');
         boxplotElement.classList.add('hidden');
+        boxplotErrorElement.classList.add('hidden');
         geneInfoElement.innerHTML = '';
         geneTitleElement.textContent = `Loading data for ${geneName}...`;
 
@@ -85,24 +113,22 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch(`/api/gene/${geneName}`)
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Gene not found');
+                    throw new Error(response.status === 404
+                        ? `Gene "${geneName}" not found or has no data`
+                        : `HTTP error! status: ${response.status}`);
                 }
                 return response.json();
             })
             .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
                 // Update gene title and info
                 geneTitleElement.textContent = `${geneName} Information`;
 
                 // Display gene information
-                const geneInfo = data.gene_info;
-                let infoHTML = '<table>';
-                infoHTML += `<tr><td>Gene Symbol:</td><td>${geneInfo.EntrezGeneSymbol}</td></tr>`;
-                infoHTML += `<tr><td>Log2 Fold Change:</td><td>${typeof geneInfo.logFC === 'number' ? geneInfo.logFC.toFixed(4) : geneInfo.logFC}</td></tr>`;
-                infoHTML += `<tr><td>Adjusted P-value:</td><td>${typeof geneInfo['adj.P.Val'] === 'number' ? geneInfo['adj.P.Val'].toExponential(4) : geneInfo['adj.P.Val']}</td></tr>`;
-                infoHTML += `<tr><td>Regulation:</td><td>${geneInfo.regulation}</td></tr>`;
-                infoHTML += '</table>';
-
-                geneInfoElement.innerHTML = infoHTML;
+                displayGeneInfo(geneInfoElement, data.gene_info);
 
                 // Create boxplot
                 const boxplotData = JSON.parse(data.boxplot);
@@ -116,12 +142,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         b: 70,
                         t: 70,
                         pad: 10
-                    }
+                    },
+                    hovermode: 'closest'
                 };
 
                 Plotly.newPlot('boxplot', boxplotData.data, updatedBoxplotLayout, {
                     responsive: true,
-                    displayModeBar: true
+                    displayModeBar: true,
+                    modeBarButtonsToRemove: ['lasso2d', 'select2d']
                 });
 
                 boxplotLoading.classList.add('hidden');
@@ -133,12 +161,50 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => {
                 console.error('Error loading gene data:', error);
                 geneTitleElement.textContent = 'Error';
-                geneInfoElement.innerHTML = `<p>Error loading data for ${geneName}. ${error}</p>`;
+                boxplotErrorElement.textContent = `Error: ${error.message}`;
+                boxplotErrorElement.classList.remove('hidden');
                 boxplotLoading.classList.add('hidden');
             });
     }
 
-    // Function to create papers section with lazy loading
+    /**
+     * Display gene information in a table
+     * @param {HTMLElement} container - Element to populate with gene info
+     * @param {Object} geneInfo - Gene information object
+     */
+    function displayGeneInfo(container, geneInfo) {
+        let infoHTML = '<table>';
+        infoHTML += `<tr><td>Gene Symbol:</td><td>${geneInfo.EntrezGeneSymbol}</td></tr>`;
+        infoHTML += `<tr><td>Log2 Fold Change:</td><td>${typeof geneInfo.logFC === 'number' ? geneInfo.logFC.toFixed(4) : geneInfo.logFC}</td></tr>`;
+        infoHTML += `<tr><td>Adjusted P-value:</td><td>${typeof geneInfo['adj.P.Val'] === 'number' ? geneInfo['adj.P.Val'].toExponential(4) : geneInfo['adj.P.Val']}</td></tr>`;
+        infoHTML += `<tr><td>Regulation:</td><td>${geneInfo.regulation}</td></tr>`;
+        infoHTML += '</table>';
+
+        container.innerHTML = infoHTML;
+    }
+
+    /**
+     * Remove existing paper elements from the container
+     * @param {HTMLElement} container - Container element
+     */
+    function removeExistingPaperElements(container) {
+        const existingPapersContainer = container.querySelector('.papers-container');
+        if (existingPapersContainer) {
+            existingPapersContainer.remove();
+        }
+
+        const existingNoPapers = container.querySelector('.no-papers');
+        if (existingNoPapers) {
+            existingNoPapers.remove();
+        }
+    }
+
+    /**
+     * Function to create papers section with lazy loading
+     * @param {string} geneName - Gene name
+     * @param {HTMLElement} container - Container to add papers section to
+     * @param {Array} initialPapers - Initial papers array
+     */
     function createPapersSection(geneName, container, initialPapers) {
         // Create papers container
         const papersContainer = document.createElement('div');
@@ -190,16 +256,37 @@ document.addEventListener('DOMContentLoaded', function() {
         container.appendChild(papersContainer);
     }
 
-    // Function to fetch additional papers
+    /**
+     * Function to fetch additional papers
+     * @param {string} geneName - Gene name
+     * @param {HTMLElement} papersContainer - Papers container element
+     */
     function fetchAdditionalPapers(geneName, papersContainer) {
+        const loadingSpan = papersContainer.querySelector('.papers-loading');
+        const papersList = papersContainer.querySelector('.papers-list');
+
+        // Set loading timeout to show error after 30 seconds
+        const loadingTimeout = setTimeout(() => {
+            if (loadingSpan.textContent.includes('Loading')) {
+                loadingSpan.textContent = '';
+                papersList.innerHTML = '';
+                const errorElement = document.createElement('li');
+                errorElement.className = 'papers-error';
+                errorElement.textContent = 'Timeout loading papers. Please try again later.';
+                papersList.appendChild(errorElement);
+            }
+        }, 30000);
+
         fetch(`/api/papers/${geneName}`)
-            .then(response => response.json())
+            .then(response => {
+                clearTimeout(loadingTimeout);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 const papers = data.papers || [];
-                const papersList = papersContainer.querySelector('.papers-list');
-                const loadingSpan = papersContainer.querySelector('.papers-loading');
-
-                // Clear loading indicators
                 loadingSpan.textContent = '';
                 papersList.innerHTML = '';
 
@@ -220,21 +307,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
+                clearTimeout(loadingTimeout);
                 console.error('Error loading papers:', error);
-                const papersList = papersContainer.querySelector('.papers-list');
-                const loadingSpan = papersContainer.querySelector('.papers-loading');
-
                 loadingSpan.textContent = '';
                 papersList.innerHTML = '';
 
                 const errorElement = document.createElement('li');
                 errorElement.className = 'papers-error';
-                errorElement.textContent = 'Error loading papers. Please try again later.';
+                errorElement.textContent = `Error loading papers: ${error.message}`;
                 papersList.appendChild(errorElement);
             });
     }
 
-    // Function to create a paper list item
+    /**
+     * Function to create a paper list item
+     * @param {Object} paper - Paper data object
+     * @returns {HTMLElement} Paper list item
+     */
     function createPaperItem(paper) {
         const paperItem = document.createElement('li');
 
@@ -242,6 +331,10 @@ document.addEventListener('DOMContentLoaded', function() {
         paperLink.href = paper.url;
         paperLink.target = '_blank';
         paperLink.textContent = paper.title || `PubMed ID: ${paper.pmid}`;
+
+        // Add rel attribute for security
+        paperLink.rel = 'noopener noreferrer';
+
         paperItem.appendChild(paperLink);
 
         const paperMeta = document.createElement('div');
@@ -263,7 +356,11 @@ document.addEventListener('DOMContentLoaded', function() {
         return paperItem;
     }
 
-    // Function to add sort controls to papers container
+    /**
+     * Function to add sort controls to papers container
+     * @param {HTMLElement} papersContainer - Papers container element
+     * @param {Array} papers - Papers array
+     */
     function addSortControls(papersContainer, papers) {
         // Remove existing sort controls if any
         const existingSortControls = papersContainer.querySelector('.sort-controls');
@@ -311,14 +408,21 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Function to render papers based on current sort settings
+    /**
+     * Function to render papers based on current sort settings
+     * @param {HTMLElement} container - Container element
+     */
     function renderPapers(container) {
         const papersList = container.querySelector('.papers-list');
         const sortSelect = container.querySelector('#paper-sort');
 
         // Get data
-        const allPapers = JSON.parse(container.dataset.allPapers);
-        const visibleCount = parseInt(container.dataset.visibleCount);
+        const allPapers = JSON.parse(container.dataset.allPapers || '[]');
+        const visibleCount = parseInt(container.dataset.visibleCount || '0', 10);
+
+        if (allPapers.length === 0) {
+            return;
+        }
 
         // Sort papers
         const sortedPapers = [...allPapers];

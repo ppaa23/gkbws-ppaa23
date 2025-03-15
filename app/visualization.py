@@ -3,6 +3,9 @@ import plotly.graph_objects as go
 import json
 import numpy as np
 import pandas as pd
+from app.logger import get_logger
+
+logger = get_logger()
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -26,17 +29,17 @@ def create_volcano_plot(volcano_data):
     """Generate interactive volcano plot from processed data."""
     # Ensure we have data to plot
     if volcano_data is None or len(volcano_data) == 0:
+        logger.error("No data available for volcano plot")
         return json.dumps({"error": "No data available for volcano plot"})
 
     # Filter out NaN values in key columns
     clean_data = volcano_data.dropna(subset=['logFC', '-log10(adj.P.Val)', 'regulation', 'EntrezGeneSymbol'])
 
-    # Print some diagnostic information
-    print(f"Total data points: {len(clean_data)}")
-    print(f"Regulation categories: {clean_data['regulation'].unique().tolist()}")
-    print(f"Up-regulated: {len(clean_data[clean_data['regulation'] == 'up-regulated'])}")
-    print(f"Down-regulated: {len(clean_data[clean_data['regulation'] == 'down-regulated'])}")
-    print(f"Not significant: {len(clean_data[clean_data['regulation'] == 'not significant'])}")
+    # Log some diagnostic information
+    logger.info(f"Creating volcano plot with {len(clean_data)} data points")
+    logger.info(f"Up-regulated: {len(clean_data[clean_data['regulation'] == 'up-regulated'])}")
+    logger.info(f"Down-regulated: {len(clean_data[clean_data['regulation'] == 'down-regulated'])}")
+    logger.info(f"Not significant: {len(clean_data[clean_data['regulation'] == 'not significant'])}")
 
     # Separate data by regulation category for different colors
     not_sig_data = clean_data[clean_data['regulation'] == 'not significant']
@@ -46,7 +49,7 @@ def create_volcano_plot(volcano_data):
     # Create the plot with separate traces for each regulation type
     fig = go.Figure()
 
-    # Add not significant points - IMPORTANT: Each gene name must be wrapped in an array to match main.js
+    # Add not significant points - wrap each gene name in an array to match main.js
     if len(not_sig_data) > 0:
         fig.add_trace(go.Scatter(
             x=not_sig_data['logFC'].tolist(),
@@ -64,7 +67,6 @@ def create_volcano_plot(volcano_data):
             'p-value: %{text}<br>' +
             '<extra></extra>',
             text=not_sig_data['adj.P.Val'].apply(lambda p: f'{p:.2e}').tolist(),
-            # Wrap each gene name in an array to match main.js expectation
             customdata=[[gene] for gene in not_sig_data['EntrezGeneSymbol'].tolist()]
         ))
 
@@ -86,7 +88,6 @@ def create_volcano_plot(volcano_data):
             'p-value: %{text}<br>' +
             '<extra></extra>',
             text=up_reg_data['adj.P.Val'].apply(lambda p: f'{p:.2e}').tolist(),
-            # Wrap each gene name in an array to match main.js expectation
             customdata=[[gene] for gene in up_reg_data['EntrezGeneSymbol'].tolist()]
         ))
 
@@ -108,7 +109,6 @@ def create_volcano_plot(volcano_data):
             'p-value: %{text}<br>' +
             '<extra></extra>',
             text=down_reg_data['adj.P.Val'].apply(lambda p: f'{p:.2e}').tolist(),
-            # Wrap each gene name in an array to match main.js expectation
             customdata=[[gene] for gene in down_reg_data['EntrezGeneSymbol'].tolist()]
         ))
 
@@ -189,14 +189,19 @@ def create_volcano_plot(volcano_data):
     )
 
     # Use custom encoder to handle numpy values
-    return json.dumps(fig.to_dict(), cls=NumpyEncoder)
+    plot_json = json.dumps(fig.to_dict(), cls=NumpyEncoder)
+    logger.info("Volcano plot creation complete")
+    return plot_json
 
 
 def create_boxplot(boxplot_data, gene_name):
     """Generate boxplot comparing Young vs Old samples for a specific gene."""
     # Check if we have data
     if boxplot_data is None or len(boxplot_data) == 0:
-        return json.dumps({"error": "No data available for boxplot"})
+        logger.error(f"No boxplot data available for gene {gene_name}")
+        return json.dumps({"error": f"No data available for {gene_name} boxplot"})
+
+    logger.info(f"Creating boxplot for gene {gene_name} with {len(boxplot_data)} data points")
 
     # Create figure
     fig = go.Figure()
@@ -243,4 +248,6 @@ def create_boxplot(boxplot_data, gene_name):
     )
 
     # Use custom encoder to handle numpy values
-    return json.dumps(fig.to_dict(), cls=NumpyEncoder)
+    boxplot_json = json.dumps(fig.to_dict(), cls=NumpyEncoder)
+    logger.info(f"Boxplot creation complete for gene {gene_name}")
+    return boxplot_json
