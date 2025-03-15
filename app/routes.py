@@ -1,5 +1,5 @@
 # app/routes.py
-from flask import render_template, jsonify
+from flask import render_template, jsonify, request
 import pandas as pd
 import traceback
 import json
@@ -68,7 +68,7 @@ def init_routes(app):
                 nonlocal papers
                 try:
                     logger.info(f"Fetching papers for gene: {gene_name} in background thread")
-                    papers = mygene_client.get_papers_for_gene(gene_name, max_papers=5, timeout=10)
+                    papers = mygene_client.get_papers_for_gene(gene_name, max_papers=8, timeout=10)
                     logger.info(f"Found {len(papers)} papers for gene {gene_name}")
                 except Exception as e:
                     logger.error(f"Error fetching papers for gene {gene_name}: {str(e)}")
@@ -91,7 +91,9 @@ def init_routes(app):
             response = {
                 'gene_info': gene_data['gene_info'],
                 'boxplot': boxplot,
-                'papers': papers
+                'papers': papers,
+                'total_papers': len(papers),
+                'has_more_papers': len(papers) >= 8
             }
 
             logger.info(f"Successfully prepared response for gene: {gene_name} with {len(papers)} papers")
@@ -105,12 +107,42 @@ def init_routes(app):
 
     @app.route('/api/papers/<gene_name>')
     def get_gene_papers(gene_name):
-        """Separate endpoint to get papers for a gene"""
+        """Endpoint to get papers for a gene with pagination"""
         try:
-            logger.info(f"Fetching papers for gene: {gene_name} (dedicated endpoint)")
-            papers = mygene_client.get_papers_for_gene(gene_name, max_papers=10, timeout=20)
-            logger.info(f"Found {len(papers)} papers for gene {gene_name}")
-            return jsonify({'papers': papers})
+            # Get pagination parameters, default to first page of 5 papers
+            page = int(request.args.get('page', 1))
+            page_size = int(request.args.get('page_size', 5))
+            skip = (page - 1) * page_size
+
+            # Fetch additional 1 paper to check if there are more pages
+            papers_to_fetch = page_size + 1
+
+            logger.info(f"Fetching papers for gene: {gene_name} (page {page}, size {page_size})")
+
+            # Get all papers for this gene - we could be smarter and only fetch what we need,
+            # but the MyGene API doesn't support pagination so we need to fetch all
+            # and filter on our end
+            all_papers = mygene_client.get_papers_for_gene(gene_name, max_papers=50, timeout=20)
+
+            # Check if we have more papers than requested
+            total_papers = len(all_papers)
+
+            # Apply pagination
+            paginated_papers = all_papers[skip:skip + page_size]
+
+            # Check if there are more papers after this page
+            has_more = total_papers > skip + page_size
+
+            logger.info(
+                f"Found {total_papers} papers for gene {gene_name}, returning {len(paginated_papers)} for page {page}")
+
+            return jsonify({
+                'papers': paginated_papers,
+                'page': page,
+                'page_size': page_size,
+                'total_papers': total_papers,
+                'has_more': has_more
+            })
         except Exception as e:
             error_message = str(e)
             logger.error(f"Error fetching papers for gene {gene_name}: {error_message}")

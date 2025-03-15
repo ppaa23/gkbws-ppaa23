@@ -120,7 +120,7 @@ def get_publication_details(pmid, timeout=3):
         }
 
 
-def get_gene_publications(gene_id, timeout=10, max_papers=10):
+def get_gene_publications(gene_id, timeout=15, max_papers=50):
     """
     Get scientific publications related to a gene by its ID.
 
@@ -146,18 +146,18 @@ def get_gene_publications(gene_id, timeout=10, max_papers=10):
 
         # Check for publications in generif field
         if 'generif' in data:
-            for pub in data['generif'][:max_papers]:
+            for pub in data['generif']:
                 if 'pubmed' in pub:
                     pmids.add(str(pub['pubmed']))
 
         # Check for publications in reporter field
-        if len(pmids) < max_papers and 'reporter' in data and 'publications' in data['reporter']:
-            for pmid in data['reporter']['publications'][:max_papers - len(pmids)]:
+        if 'reporter' in data and 'publications' in data['reporter']:
+            for pmid in data['reporter']['publications']:
                 pmids.add(str(pmid))
 
         logger.info(f"Found {len(pmids)} PMIDs for gene ID {gene_id}")
 
-        # Limit the number of PMIDs to process
+        # Limit the number of PMIDs to process to max_papers
         pmids_list = list(pmids)[:max_papers]
 
         # Get details for each publication
@@ -181,7 +181,7 @@ def get_gene_publications(gene_id, timeout=10, max_papers=10):
         return []
 
 
-def get_papers_for_gene(gene_symbol, max_papers=5, timeout=15):
+def get_papers_for_gene(gene_symbol, max_papers=50, timeout=20):
     """
     Get scientific papers related to a gene symbol.
 

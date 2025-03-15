@@ -189,7 +189,6 @@ def get_gene_data(gene_name):
     # Convert the boxplot data to a format suitable for JSON
     boxplot_values = boxplot_data.to_dict(orient='records')
 
-    # Combine all data
     result = {
         'gene_info': gene_info,
         'boxplot_data': boxplot_values
