@@ -6,4 +6,3 @@ plotly==5.16.1
 openpyxl==3.1.2
 requests==2.32.0
 pytest==7.4.0
-pytest-cov==4.1.0
