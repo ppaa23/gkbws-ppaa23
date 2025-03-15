@@ -42,7 +42,7 @@ All the required packages (with the appropriate versions) are specified in the `
 ## Features
 - **Interactive Volcano Plot**: The app uses Plotly to create an interactive volcano plot (with standard level of critical p-value = 0.5).
 - **Gene-Specific Boxplots**: The app displays boxplots showing the distribution of expression among different age groups.
-- **Related Publications**: The app displays research papers with mentioning of gene name (obtained through MyGene.info API). For better user experience, related papers are paginated, and can be sorted (but sorting is working for each page separately, since the loading of all papers might be to slow).
+- **Related Publications**: The app displays research papers with mentioning of gene name (obtained through MyGene.info API). For better user experience, related papers are paginated, and can be sorted (but sorting is working for each page separately, since the loading of all papers might be too slow). Loading this data is also bounded by the timeout of 100 seconds to avoid long waiting times.
 - **Caching of gene-specific information**: The app caches volcano plot data and gene-specific information to reduce the number of API calls and improve time and memory efficiency.
 - **Logging**: The app uses Singleton pattern to avoid multiple instances of logger.
 - **Testing**: The app uses pytest to test the application (including negative tests, e.g. 404 error).
